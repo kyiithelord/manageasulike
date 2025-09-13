@@ -1,0 +1,34 @@
+# Docker
+.dockerignore
+
+# Kubernetes
+*.kubeconfig
+
+# Logs
+*.log
+logs/
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backup files
+backups/
+*.backup
+*.sql
+*.tar.gz
+
+# Temporary files
+tmp/
+temp/

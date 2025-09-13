@@ -1,0 +1,80 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: odoo-backup
+  namespace: odoo
+spec:
+  schedule: "0 2 * * *"  # Run daily at 2 AM
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: backup
+            image: postgres:15  # Using postgres image for pg_dump
+            command:
+            - /bin/bash
+            - -c
+            - |
+              # Install required packages
+              apt-get update && apt-get install -y awscli curl gzip
+              
+              # Set environment variables
+              export PGPASSWORD=$(cat /etc/secrets/postgres-password)
+              
+              # Create backup directory
+              mkdir -p /backups
+              
+              # Database backup
+              echo "Starting database backup..."
+              pg_dump -h postgres-service -p 5432 -U odoo -d odoo > /backups/odoo_db_$(date +%Y%m%d_%H%M%S).sql
+              
+              # Compress database backup
+              gzip /backups/odoo_db_*.sql
+              
+              # Upload to S3 (replace with your S3 bucket and region)
+              # aws s3 cp /backups/ s3://your-backup-bucket/odoo-backups/ --recursive
+              
+              echo "Backup completed successfully!"
+            env:
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: odoo-secrets
+                  key: aws-access-key
+                  optional: true
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: odoo-secrets
+                  key: aws-secret-key
+                  optional: true
+            - name: AWS_DEFAULT_REGION
+              value: "us-west-2"
+            volumeMounts:
+            - name: postgres-password
+              mountPath: /etc/secrets
+              readOnly: true
+            - name: odoo-filestore
+              mountPath: /var/lib/odoo
+              readOnly: true
+            resources:
+              requests:
+                memory: "512Mi"
+                cpu: "250m"
+              limits:
+                memory: "1Gi"
+                cpu: "500m"
+          volumes:
+          - name: postgres-password
+            secret:
+              secretName: odoo-secrets
+              items:
+              - key: postgres-password
+                path: postgres-password
+          - name: odoo-filestore
+            persistentVolumeClaim:
+              claimName: odoo-pvc
+          restartPolicy: OnFailure
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3

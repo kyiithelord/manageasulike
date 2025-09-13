@@ -1,0 +1,72 @@
+apiVersion: v1
+kind: ServiceMonitor
+metadata:
+  name: odoo-monitor
+  namespace: odoo
+  labels:
+    app: odoo
+spec:
+  selector:
+    matchLabels:
+      app: odoo
+  endpoints:
+  - port: 8069
+    path: /metrics
+    interval: 30s
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: odoo-alerts
+  namespace: odoo
+  labels:
+    app: odoo
+spec:
+  groups:
+  - name: odoo.rules
+    rules:
+    - alert: OdooDown
+      expr: up{job="odoo"} == 0
+      for: 1m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Odoo instance is down"
+        description: "Odoo instance {{ $labels.instance }} has been down for more than 1 minute."
+    
+    - alert: OdooHighCPU
+      expr: rate(container_cpu_usage_seconds_total{container="odoo"}[5m]) > 0.8
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High CPU usage on Odoo"
+        description: "Odoo instance {{ $labels.instance }} has high CPU usage ({{ $value }})."
+    
+    - alert: OdooHighMemory
+      expr: container_memory_usage_bytes{container="odoo"} / container_spec_memory_limit_bytes{container="odoo"} > 0.9
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High memory usage on Odoo"
+        description: "Odoo instance {{ $labels.instance }} has high memory usage ({{ $value }})."
+    
+    - alert: PostgresDown
+      expr: up{job="postgres"} == 0
+      for: 1m
+      labels:
+        severity: critical
+      annotations:
+        summary: "PostgreSQL is down"
+        description: "PostgreSQL instance {{ $labels.instance }} has been down for more than 1 minute."
+    
+    - alert: BackupFailed
+      expr: kube_job_status_failed{job_name=~"odoo-backup-.*"} == 1
+      for: 0m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Odoo backup failed"
+        description: "Odoo backup job {{ $labels.job_name }} has failed."
