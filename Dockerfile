@@ -1,5 +1,6 @@
-# Use official Odoo 18 image as base
-FROM odoo:18
+# Use official Odoo image as base (version is parameterized)
+ARG ODOO_VERSION=18
+FROM odoo:${ODOO_VERSION}
 
 # Set maintainer
 LABEL maintainer="your-email@example.com"

@@ -1,12 +1,12 @@
-# Odoo 18 Docker & Kubernetes Deployment
+# Odoo Docker & Kubernetes Deployment (Multi‑Version)
 
-This repository contains a complete Docker and Kubernetes setup for deploying Odoo 18 with high availability, auto-scaling, and automated backups. The project supports both local development and production deployment.
+This repository contains a complete Docker and Kubernetes setup for deploying Odoo with high availability, auto-scaling, and automated backups. It supports multiple Odoo versions for both local development and production deployment.
 
 ## 🏗️ Architecture Overview
 
 ### System Components
 
-- **Docker**: Custom Odoo 18 image with your business modules
+- **Docker**: Custom Odoo image (version set via `.env`) with your business modules
 - **Kubernetes**: Orchestrates the entire application stack (production)
 - **PostgreSQL 15**: Database with persistent storage
 - **Auto-scaling**: Horizontal Pod Autoscaler (HPA) based on CPU/memory
@@ -41,8 +41,9 @@ Internet → Ingress Controller → Odoo Service → Odoo Pods (2-10 instances)
 
 ```
 odooS/
-├── Dockerfile                 # Custom Odoo 18 image
+├── Dockerfile                 # Custom Odoo image (version via build arg)
 ├── docker-compose.yml         # Local development setup
+├── env.example                # Example environment file (copy to .env)
 ├── addons/                    # Custom Odoo modules (PUT YOUR CODE HERE)
 ├── config/
 │   └── odoo.conf             # Odoo configuration
@@ -66,6 +67,22 @@ odooS/
 ```
 
 ## 🚀 Quick Start
+
+### Multi‑Version Support (Set Odoo/Postgres versions)
+
+1. Create your `.env` from the example:
+   ```bash
+   cp env.example .env
+   ```
+2. Edit `.env` to choose versions and ports:
+   ```ini
+   ODOO_VERSION=18        # e.g., 16, 17, 18
+   POSTGRES_VERSION=15    # e.g., 13, 14, 15
+   ODOO_HOST_PORT=8069
+   POSTGRES_HOST_PORT=5433
+   POSTGRES_PASSWORD=odoo
+   ```
+3. The compose file and Dockerfile will automatically use these values.
 
 ### Prerequisites
 
@@ -148,10 +165,11 @@ chmod +x scripts/*.sh
    - host: odoo.yourdomain.com  # Replace with your domain
    ```
 
-3. **Update odoo.yaml** with your image:
+3. **Update odoo.yaml** with your image and version:
    ```yaml
-   image: your-registry.com/odoo:v1.0.0
+   image: your-registry.com/odoo:18
    ```
+   Replace `18` with the Odoo version you selected in `.env`.
 
 #### Step 3: Deploy to Kubernetes
 ```bash
@@ -186,12 +204,12 @@ workers = 2
 ### Docker Compose Configuration
 
 **Services:**
-- **odoo**: Custom Odoo 18 container
-- **db**: PostgreSQL 15 database
+- **odoo**: Custom Odoo container (version from `ODOO_VERSION`)
+- **db**: PostgreSQL database (version from `POSTGRES_VERSION`)
 
-**Ports:**
-- **Odoo**: `8069` (external) → `8069` (container)
-- **PostgreSQL**: `5433` (external) → `5432` (container)
+**Ports (from `.env`):**
+- **Odoo**: `${ODOO_HOST_PORT}` (external) → `8069` (container)
+- **PostgreSQL**: `${POSTGRES_HOST_PORT}` (external) → `5432` (container)
 
 **Volumes:**
 - **odoo-web-data**: Odoo file storage
@@ -314,9 +332,9 @@ kubectl port-forward svc/odoo-service 8069:8069 -n odoo
 # Check what's using port 8069
 netstat -tlnp | grep 8069
 
-# Change port in docker-compose.yml if needed
+# Change port in .env if needed
 ports:
-  - "8070:8069"  # Use different external port
+  - "8070:8069"  # Or set ODOO_HOST_PORT=8070 in .env
 ```
 
 #### 2. Database Connection Issues
@@ -345,7 +363,7 @@ docker compose down && docker compose up -d
 
 #### 4. Module Not Appearing
 ```bash
-# Rebuild container
+# Rebuild container after changing versions or code
 docker compose up -d --build
 
 # Check addons path in logs

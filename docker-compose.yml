@@ -1,8 +1,8 @@
-# Docker Compose file for Odoo 18
+# Docker Compose file for Odoo (version-agnostic via .env)
 
 services:
   db:
-    image: postgres:15
+    image: postgres:${POSTGRES_VERSION}
     environment:
       POSTGRES_DB: odoo
       POSTGRES_USER: odoo
@@ -11,19 +11,22 @@ services:
     volumes:
       - odoo-db-data:/var/lib/postgresql/data/pgdata
     ports:
-      - "5433:5432"
+      - "${POSTGRES_HOST_PORT}:5432"
     restart: unless-stopped
 
   odoo:
-    build: .
+    build:
+      context: .
+      args:
+        ODOO_VERSION: ${ODOO_VERSION}
     depends_on:
       - db
     ports:
-      - "8069:8069"
+      - "${ODOO_HOST_PORT}:8069"
     environment:
       - HOST=db
       - USER=odoo
-      - PASSWORD=odoo
+      - PASSWORD=${POSTGRES_PASSWORD}
     volumes:
       - odoo-web-data:/var/lib/odoo
       - ./addons:/mnt/extra-addons
