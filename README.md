@@ -1,36 +1,49 @@
-# Odoo 19 Docker & Kubernetes Deployment
+# Odoo 18 Docker & Kubernetes Deployment
 
-This repository contains a complete Docker and Kubernetes setup for deploying Odoo 19 with high availability, auto-scaling, and automated backups.
+This repository contains a complete Docker and Kubernetes setup for deploying Odoo 18 with high availability, auto-scaling, and automated backups. The project supports both local development and production deployment.
 
 ## 🏗️ Architecture Overview
 
-### Components
+### System Components
 
-- **Docker**: Custom Odoo 19 image with your business modules
-- **Kubernetes**: Orchestrates the entire application stack
-- **PostgreSQL**: Database with persistent storage
+- **Docker**: Custom Odoo 18 image with your business modules
+- **Kubernetes**: Orchestrates the entire application stack (production)
+- **PostgreSQL 15**: Database with persistent storage
 - **Auto-scaling**: Horizontal Pod Autoscaler (HPA) based on CPU/memory
 - **Load Balancing**: Kubernetes services distribute traffic
 - **Ingress**: External access with SSL termination
 - **Backup System**: Automated database and file-store backups
 - **Monitoring**: Prometheus metrics and alerting
 
-### High-Level Architecture
+### Architecture Diagrams
 
+#### Local Development Architecture
 ```
-Internet → Ingress → Odoo Service → Odoo Pods (2-10 instances)
+Browser → localhost:8069 → Docker Compose → Odoo Container
+                                    ↓
+                              PostgreSQL Container
+                                    ↓
+                              Docker Volumes
+```
+
+#### Production Kubernetes Architecture
+```
+Internet → Ingress Controller → Odoo Service → Odoo Pods (2-10 instances)
                                     ↓
                               PostgreSQL Service → PostgreSQL Pod
                                     ↓
-                              Persistent Volume
+                              Persistent Volumes
+                                    ↓
+                              Backup System → S3/Storage
 ```
 
 ## 📁 Project Structure
 
 ```
 odooS/
-├── Dockerfile                 # Custom Odoo 19 image
+├── Dockerfile                 # Custom Odoo 18 image
 ├── docker-compose.yml         # Local development setup
+├── addons/                    # Custom Odoo modules (PUT YOUR CODE HERE)
 ├── config/
 │   └── odoo.conf             # Odoo configuration
 ├── k8s/                      # Kubernetes manifests
@@ -56,29 +69,64 @@ odooS/
 
 ### Prerequisites
 
-- Docker and Docker Compose
-- Kubernetes cluster (minikube, GKE, EKS, AKS, etc.)
-- kubectl configured
-- Docker registry access (optional for production)
+#### For Local Development
+- **Docker**: Version 20.10+ (with Docker Compose V2)
+- **Git**: For cloning the repository
+- **Web Browser**: For accessing Odoo interface
 
-### 1. Local Development
+#### For Production Deployment
+- **Docker**: Version 20.10+
+- **Kubernetes**: Cluster (minikube, GKE, EKS, AKS, etc.)
+- **kubectl**: Configured for your cluster
+- **Docker Registry**: Access (optional for production)
 
+### 1. Local Development Setup
+
+#### Step 1: Clone and Setup
 ```bash
 # Clone the repository
-git clone this repo
+git clone <your-repo-url>
 cd odooS
 
-# Start local development environment
-docker-compose up -d
-
-# Access Odoo at http://localhost:8069
-# Default credentials: admin/admin
+# Verify Docker is running
+docker --version
+docker compose version
 ```
 
-### 2. Kubernetes Deployment
+#### Step 2: Start the Development Environment
+```bash
+# Start all services
+docker compose up -d
+
+# Check if containers are running
+docker compose ps
+
+# View logs (optional)
+docker compose logs odoo
+```
+
+#### Step 3: Access Odoo
+- **URL**: `http://localhost:8069/odoo`
+- **Default Credentials**: 
+  - Username: `admin`
+  - Password: `admin`
+
+#### Step 4: Database Initialization (if needed)
+If you encounter database issues, initialize the base module:
+```bash
+# Stop containers
+docker compose down
+
+# Initialize database
+docker compose run --rm odoo odoo -i base -d odoo --stop-after-init
+
+# Start services again
+docker compose up -d
+```
+
+### 2. Production Kubernetes Deployment
 
 #### Step 1: Build and Push Docker Image
-
 ```bash
 # Make scripts executable
 chmod +x scripts/*.sh
@@ -88,7 +136,6 @@ chmod +x scripts/*.sh
 ```
 
 #### Step 2: Update Configuration
-
 1. **Update secrets.yaml** with your actual values:
    ```bash
    # Encode your passwords
@@ -107,7 +154,6 @@ chmod +x scripts/*.sh
    ```
 
 #### Step 3: Deploy to Kubernetes
-
 ```bash
 # Deploy everything
 ./scripts/deploy.sh production
@@ -122,14 +168,38 @@ kubectl get ingress -n odoo
 
 ### Odoo Configuration
 
-The Odoo configuration is managed through Kubernetes ConfigMap (`k8s/configmap.yaml`). Key settings:
+The Odoo configuration is managed through `config/odoo.conf`:
 
-- **Database**: Connected to PostgreSQL service
-- **Workers**: 2 workers per pod
-- **Memory limits**: 2GB per pod
-- **Logging**: Configured for production
+```ini
+[options]
+admin_passwd = admin
+db_host = db
+db_port = 5432
+db_user = odoo
+db_password = odoo
+db_name = False
+addons_path = /mnt/extra-addons,/usr/lib/python3/dist-packages/odoo/addons
+data_dir = /var/lib/odoo
+workers = 2
+```
 
-### Auto-scaling
+### Docker Compose Configuration
+
+**Services:**
+- **odoo**: Custom Odoo 18 container
+- **db**: PostgreSQL 15 database
+
+**Ports:**
+- **Odoo**: `8069` (external) → `8069` (container)
+- **PostgreSQL**: `5433` (external) → `5432` (container)
+
+**Volumes:**
+- **odoo-web-data**: Odoo file storage
+- **odoo-db-data**: PostgreSQL data
+- **./addons**: Custom modules directory
+- **./config**: Configuration files
+
+### Auto-scaling (Production)
 
 The Horizontal Pod Autoscaler (HPA) is configured to:
 - **Min replicas**: 2
@@ -145,9 +215,74 @@ Automated backups run daily at 2 AM and include:
 - S3 upload (configurable)
 - Local cleanup (7-day retention)
 
+## 🛠️ Development Workflow
+
+### Adding Custom Modules
+
+1. **Create your module** in the `addons/` directory:
+   ```bash
+   addons/
+   └── my_custom_module/
+       ├── __manifest__.py
+       ├── models/
+       ├── views/
+       ├── static/
+       └── __init__.py
+   ```
+
+2. **Rebuild the container** after adding modules:
+   ```bash
+   docker compose up -d --build
+   ```
+
+3. **Install the module** in Odoo:
+   - Go to Apps menu
+   - Update Apps List
+   - Search for your module
+   - Install it
+
+### Development Commands
+
+```bash
+# Start development environment
+docker compose up -d
+
+# Stop development environment
+docker compose down
+
+# Rebuild after code changes
+docker compose up -d --build
+
+# View logs
+docker compose logs odoo
+docker compose logs db
+
+# Access Odoo container shell
+docker compose exec odoo bash
+
+# Access database
+docker compose exec db psql -U odoo -d odoo
+
+# Check container status
+docker compose ps
+```
+
 ## 📊 Monitoring
 
-### Metrics
+### Local Development Monitoring
+
+```bash
+# View real-time logs
+docker compose logs -f odoo
+
+# Check resource usage
+docker stats
+
+# View container details
+docker compose ps -a
+```
+
+### Production Monitoring
 
 The setup includes Prometheus monitoring for:
 - Pod health and availability
@@ -155,75 +290,7 @@ The setup includes Prometheus monitoring for:
 - Database connectivity
 - Backup job status
 
-### Alerts
-
-Configured alerts for:
-- Odoo instance down
-- High CPU/memory usage
-- PostgreSQL down
-- Backup failures
-
-## 🔒 Security
-
-### Secrets Management
-
-Sensitive data is stored in Kubernetes secrets:
-- Database passwords
-- Admin passwords
-- AWS credentials (for backups)
-
-### Network Security
-
-- Internal service communication
-- SSL termination at ingress
-- Network policies (can be added)
-
-## 🛠️ Customization
-
-### Adding Custom Modules
-
-1. Place your modules in the `addons/` directory
-2. Rebuild the Docker image
-3. Update the Kubernetes deployment
-
-### Scaling Configuration
-
-Modify `k8s/hpa.yaml` to adjust:
-- Min/max replicas
-- CPU/memory thresholds
-- Scaling behavior
-
-### Backup Configuration
-
-Update `k8s/backup-cronjob.yaml` to:
-- Change backup schedule
-- Configure S3 settings
-- Add notification webhooks
-
-## 🔍 Troubleshooting
-
-### Common Issues
-
-1. **Pods not starting**:
-   ```bash
-   kubectl describe pod <pod-name> -n odoo
-   kubectl logs <pod-name> -n odoo
-   ```
-
-2. **Database connection issues**:
-   ```bash
-   kubectl get svc -n odoo
-   kubectl logs deployment/postgres -n odoo
-   ```
-
-3. **Ingress not working**:
-   ```bash
-   kubectl get ingress -n odoo
-   kubectl describe ingress odoo-ingress -n odoo
-   ```
-
-### Useful Commands
-
+**Useful Commands:**
 ```bash
 # Check all resources
 kubectl get all -n odoo
@@ -238,11 +305,117 @@ kubectl scale deployment odoo --replicas=5 -n odoo
 kubectl port-forward svc/odoo-service 8069:8069 -n odoo
 ```
 
+## 🔍 Troubleshooting
+
+### Common Issues
+
+#### 1. Port Already in Use
+```bash
+# Check what's using port 8069
+netstat -tlnp | grep 8069
+
+# Change port in docker-compose.yml if needed
+ports:
+  - "8070:8069"  # Use different external port
+```
+
+#### 2. Database Connection Issues
+```bash
+# Check database logs
+docker compose logs db
+
+# Test database connection
+docker compose exec db psql -U odoo -d odoo -c "\l"
+
+# Restart database
+docker compose restart db
+```
+
+#### 3. Odoo Not Starting
+```bash
+# Check Odoo logs
+docker compose logs odoo
+
+# Initialize database if needed
+docker compose run --rm odoo odoo -i base -d odoo --stop-after-init
+
+# Restart services
+docker compose down && docker compose up -d
+```
+
+#### 4. Module Not Appearing
+```bash
+# Rebuild container
+docker compose up -d --build
+
+# Check addons path in logs
+docker compose logs odoo | grep addons
+
+# Verify module structure
+ls -la addons/your_module/
+```
+
+#### 5. Permission Issues
+```bash
+# Fix file permissions
+sudo chown -R 1000:1000 ./addons
+sudo chown -R 1000:1000 ./config
+
+# Check container user
+docker compose exec odoo whoami
+```
+
+### Production Issues
+
+#### 1. Pods Not Starting
+```bash
+kubectl describe pod <pod-name> -n odoo
+kubectl logs <pod-name> -n odoo
+```
+
+#### 2. Ingress Not Working
+```bash
+kubectl get ingress -n odoo
+kubectl describe ingress odoo-ingress -n odoo
+```
+
+## 🔒 Security
+
+### Secrets Management
+
+**Local Development:**
+- Passwords stored in `docker-compose.yml` (not for production)
+- Use environment variables for sensitive data
+
+**Production:**
+- Sensitive data stored in Kubernetes secrets
+- Database passwords
+- Admin passwords
+- AWS credentials (for backups)
+
+### Network Security
+
+- Internal service communication
+- SSL termination at ingress
+- Network policies (can be added)
+
 ## 🧹 Cleanup
 
-To remove the entire deployment:
-
+### Local Development
 ```bash
+# Stop and remove containers
+docker compose down
+
+# Remove volumes (WARNING: deletes all data)
+docker compose down -v
+
+# Remove images
+docker rmi odoos-odoo
+```
+
+### Production
+```bash
+# Remove entire deployment
 ./scripts/cleanup.sh
 ```
 
@@ -250,17 +423,17 @@ To remove the entire deployment:
 
 ## 📚 Additional Resources
 
-- [Odoo Documentation](https://www.odoo.com/documentation/19.0/)
+- [Odoo 18 Documentation](https://www.odoo.com/documentation/18.0/)
+- [Docker Compose Documentation](https://docs.docker.com/compose/)
 - [Kubernetes Documentation](https://kubernetes.io/docs/)
-- [Docker Documentation](https://docs.docker.com/)
-- [Prometheus Monitoring](https://prometheus.io/docs/)
+- [PostgreSQL Documentation](https://www.postgresql.org/docs/)
 
 ## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Test thoroughly
+4. Test thoroughly (both local and production)
 5. Submit a pull request
 
 ## 📄 License
@@ -271,10 +444,38 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 For issues and questions:
 1. Check the troubleshooting section
-2. Review Kubernetes and Odoo logs
+2. Review Docker and Odoo logs
 3. Create an issue in the repository
 4. Contact the development team
 
 ---
 
-**Note**: This setup is designed for production use but should be thoroughly tested in your environment before deploying critical workloads.
+**Note**: This setup is designed for both development and production use. Always test thoroughly in your environment before deploying critical workloads.
+
+## 🎯 Quick Reference
+
+### Essential Commands
+```bash
+# Start development
+docker compose up -d
+
+# Access Odoo
+http://localhost:8069/odoo
+
+# Stop development
+docker compose down
+
+# Rebuild after changes
+docker compose up -d --build
+
+# View logs
+docker compose logs odoo
+```
+
+### Default Credentials
+- **Username**: admin
+- **Password**: admin
+
+### Key URLs
+- **Odoo Interface**: http://localhost:8069/odoo
+- **Database**: localhost:5433 (PostgreSQL)

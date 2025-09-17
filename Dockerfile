@@ -1,5 +1,5 @@
-# Use official Odoo 19 image as base
-FROM odoo:19
+# Use official Odoo 18 image as base
+FROM odoo:18
 
 # Set maintainer
 LABEL maintainer="your-email@example.com"

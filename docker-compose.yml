@@ -1,4 +1,4 @@
-version: '3.8'
+# Docker Compose file for Odoo 18
 
 services:
   db:
@@ -11,7 +11,7 @@ services:
     volumes:
       - odoo-db-data:/var/lib/postgresql/data/pgdata
     ports:
-      - "5432:5432"
+      - "5433:5432"
     restart: unless-stopped
 
   odoo:
