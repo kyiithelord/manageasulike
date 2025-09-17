@@ -102,7 +102,7 @@ odooS/
 #### Step 1: Clone and Setup
 ```bash
 # Clone the repository
-git clone <your-repo-url>
+git clone <this repo>
 cd odooS
 
 # Verify Docker is running
