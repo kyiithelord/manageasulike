@@ -1,0 +1,49 @@
+# Translation of Odoo Module multi_language to Spanish
+# Copyright (C) 2025
+# This file is distributed under the same license as the multi_language module.
+# FIRST AUTHOR <email@example.com>, 2025.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo 18.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-09-20 00:00+0000\n"
+"PO-Revision-Date: 2025-09-20 00:00+0000\n"
+"Last-Translator: akyii <noreply@example.com>\n"
+"Language-Team: Spanish\n"
+"Language: es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#. Python translatable string
+#: addons/multi_language/controllers/main.py:10
+msgid "Hello from Python code!"
+msgstr "¡Hola desde el código Python!"
+
+#. QWeb template title
+#: addons/multi_language/views/multi_language_templates.xml:3
+msgid "Multi Language Hello Page"
+msgstr "Página de Hola Multilenguaje"
+
+#. QWeb heading and paragraphs
+#: addons/multi_language/views/multi_language_templates.xml:6
+msgid "Multi Language Demo"
+msgstr "Demostración Multilenguaje"
+
+#: addons/multi_language/views/multi_language_templates.xml:7
+msgid "This page demonstrates Odoo i18n translations."
+msgstr "Esta página demuestra las traducciones i18n de Odoo."
+
+#: addons/multi_language/views/multi_language_templates.xml:13
+msgid "Welcome! This text is translatable."
+msgstr "¡Bienvenido! Este texto es traducible."
+
+#: addons/multi_language/views/multi_language_templates.xml:16
+msgid "Click the button below to see another translatable label."
+msgstr "Haz clic en el botón de abajo para ver otra etiqueta traducible."
+
+#: addons/multi_language/views/multi_language_templates.xml:20
+msgid "Go to Backend"
+msgstr "Ir al Backend"

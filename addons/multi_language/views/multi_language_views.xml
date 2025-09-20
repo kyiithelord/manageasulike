@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Tree and Form views for multi.language.demo -->
+    <record id="view_multi_language_demo_tree" model="ir.ui.view">
+        <field name="name">multi.language.demo.tree</field>
+        <field name="model">multi.language.demo</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="name"/>
+                <field name="message_count"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_multi_language_demo_form" model="ir.ui.view">
+        <field name="name">multi.language.demo.form</field>
+        <field name="model">multi.language.demo</field>
+        <field name="arch" type="xml">
+            <form string="Multi Language Demo">
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="message_count"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action and Menu -->
+    <record id="action_multi_language_demo" model="ir.actions.act_window">
+        <field name="name">Multi Language Demos</field>
+        <field name="res_model">multi.language.demo</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p>
+                Manage demo records with translatable fields.
+            </p>
+        </field>
+    </record>
+
+    <menuitem id="menu_multi_language_root" name="Multi Language" parent="base.menu_custom" sequence="50"/>
+    <menuitem id="menu_multi_language_demo" name="Demos" parent="menu_multi_language_root" action="action_multi_language_demo"/>
+</odoo>

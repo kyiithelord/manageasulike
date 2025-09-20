@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="hello_page" name="Multi Language Hello Page">
+        <t t-call="web.layout">
+            <div class="oe_structure">
+                <section class="container mt-4">
+                    <h1>Multi Language Demo</h1>
+                    <p>This page demonstrates Odoo i18n translations.</p>
+                    <p>
+                        <!-- Python-provided message (already translated server-side) -->
+                        <span t-esc="python_message"/>
+                    </p>
+                    <p>
+                        <!-- Pluralization demo -->
+                        <span t-esc="plural_message"/>
+                    </p>
+                    <p>
+                        <!-- Parameters shown for clarity -->
+                        <strong>Name:</strong> <span t-esc="name"/>,
+                        <strong>Count:</strong> <span t-esc="count"/>
+                    </p>
+                    <p>
+                        <!-- Static QWeb strings are auto-extracted for translation -->
+                        Welcome! This text is translatable.
+                    </p>
+                    <p>
+                        Click the button below to see another translatable label.
+                    </p>
+                    <a class="btn btn-primary" href="/web">
+                        Go to Backend
+                    </a>
+                </section>
+            </div>
+        </t>
+    </template>
+</odoo>

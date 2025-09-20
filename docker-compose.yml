@@ -37,18 +37,18 @@ services:
       - ./config:/etc/odoo
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "-qO", "-", "http://localhost:8069/web/health"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:8069/web/health >/dev/null"]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 30s
-    command: ["odoo", "-c", "/etc/odoo/odoo.conf", "--admin_passwd=${ODOO_ADMIN_PASSWORD:-admin}"]
+      retries: 15
+      start_period: 180s
+
 
   proxy:
     image: nginx:alpine
     depends_on:
       odoo:
-        condition: service_healthy
+        condition: service_started
     ports:
       - "${ODOO_HOST_PORT}:8069"
     volumes:
