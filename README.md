@@ -565,7 +565,9 @@ docker rmi odoos-odoo
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+![License: LGPL v3](https://img.shields.io/badge/License-LGPL_v3-blue.svg)
+
+This project is licensed under the GNU Lesser General Public License v3.0 or later (LGPL-3.0-or-later). See the `LICENSE` file for the full text.
 
 ## 🆘 Support
 

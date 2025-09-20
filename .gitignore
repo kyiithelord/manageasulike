@@ -12,6 +12,7 @@ logs/
 .env
 .env.local
 .env.production
+.env.*
 
 # IDE
 .vscode/
@@ -32,3 +33,27 @@ backups/
 # Temporary files
 tmp/
 temp/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage*
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Node (if used for assets)
+node_modules/
+
+# Odoo filestore (if you mount host paths for local dev)
+filestore/
