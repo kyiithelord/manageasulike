@@ -1,4 +1,78 @@
+### Local Reverse Proxy (Websocket Support)
+
+For local development, the stack includes a lightweight Nginx `proxy` service that exposes `http://localhost:8069/` and correctly routes websockets:
+
+- `/websocket` → Odoo evented port `8072` (longpolling)
+- all other paths → Odoo HTTP `8069`
+
+Files involved:
+- `docker-compose.yml` → defines the `proxy` service
+- `config/nginx.conf` → proxy rules for `/` and `/websocket`
+- `config/odoo.conf` → sets `longpolling_port = 8072`
+
+Access Odoo via the proxy: `http://localhost:8069/`
+
 # Odoo Docker & Kubernetes Deployment (Multi‑Version)
+## ♻️ Backup Restore Guide
+
+These steps assume files created by `backup/backup-script.sh`.
+
+1. Restore database
+   ```bash
+   # If compressed dump
+   gunzip -c /path/to/odoo_db_YYYYmmdd_HHMMSS.sql.gz | \
+     docker compose exec -T db psql -U odoo -d odoo
+
+   # Or if you want to restore to a new database name (e.g., odoo_restore)
+   docker compose exec -T db psql -U odoo -d postgres -c "CREATE DATABASE odoo_restore OWNER odoo;"
+   gunzip -c /path/to/odoo_db_YYYYmmdd_HHMMSS.sql.gz | \
+     docker compose exec -T db psql -U odoo -d odoo_restore
+   ```
+
+2. Restore filestore
+   ```bash
+   # Replace <dbname> with your database name (e.g., odoo or odoo_restore)
+   tar -xzf /path/to/odoo_filestore_YYYYmmdd_HHMMSS.tar.gz -C /
+   # This should recreate /var/lib/odoo/filestore/<dbname>
+   ```
+
+3. Restart services
+   ```bash
+   docker compose restart odoo
+   ```
+
+4. Verify in Odoo UI that documents/attachments load correctly.
+
+Notes:
+- In Kubernetes, run restores in a maintenance pod or via a job mounting the same PVCs.
+
+## 🌐 Ingress: Websocket Routing
+
+When deploying behind Kubernetes Ingress, ensure `/websocket` routes to port `8072` and the rest to `8069`. Example snippet:
+
+```yaml
+spec:
+  rules:
+  - host: odoo.example.com
+    http:
+      paths:
+      - path: /websocket
+        pathType: Prefix
+        backend:
+          service:
+            name: odoo-service
+            port:
+              number: 8072
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: odoo-service
+            port:
+              number: 8069
+```
+Avoid using rewrite-target on the websocket path.
+
 
 This repository contains a complete Docker and Kubernetes setup for deploying Odoo with high availability, auto-scaling, and automated backups. It supports multiple Odoo versions for both local development and production deployment.
 

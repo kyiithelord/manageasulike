@@ -4,7 +4,6 @@ metadata:
   name: odoo-ingress
   namespace: odoo
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
     cert-manager.io/cluster-issuer: "letsencrypt-prod"  # Adjust based on your cert-manager setup
@@ -21,6 +20,13 @@ spec:
   - host: odoo.yourdomain.com  # Replace with your actual domain
     http:
       paths:
+      - path: /websocket
+        pathType: Prefix
+        backend:
+          service:
+            name: odoo-service
+            port:
+              number: 8072
       - path: /
         pathType: Prefix
         backend:

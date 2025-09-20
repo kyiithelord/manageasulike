@@ -42,6 +42,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+    command: ["odoo", "-c", "/etc/odoo/odoo.conf", "--admin_passwd=${ODOO_ADMIN_PASSWORD:-admin}"]
 
   proxy:
     image: nginx:alpine
