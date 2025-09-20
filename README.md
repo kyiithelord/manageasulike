@@ -176,7 +176,7 @@ odooS/
 #### Step 1: Clone and Setup
 ```bash
 # Clone the repository
-git clone <your-repo-url>
+git clone git@github.com:kyiithelord/manageasulike.git
 cd odooS
 
 # Verify Docker is running
