@@ -31,26 +31,31 @@ spec:
     spec:
       containers:
       - name: odoo
-        image: your-registry/odoo:latest  # Replace with your actual image
+        image: your-registry/odoo:latest  # Replace with your actual image (e.g., your-registry.com/odoo:18)
         ports:
         - containerPort: 8069
+        - containerPort: 8072  # longpolling (if enabled)
         env:
-        - name: HOST
-          value: postgres-service
-        - name: USER
-          value: odoo
-        - name: PASSWORD
+        - name: DB_PASSWORD
           valueFrom:
             secretKeyRef:
               name: odoo-secrets
               key: postgres-password
+        - name: ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: odoo-secrets
+              key: odoo-admin-password
+        args:
+          - "-c"
+          - "/etc/odoo/odoo.conf"
+          - "--db_password=$(DB_PASSWORD)"
+          - "--admin_passwd=$(ADMIN_PASSWORD)"
         volumeMounts:
         - name: odoo-data
           mountPath: /var/lib/odoo
         - name: odoo-config
           mountPath: /etc/odoo
-        - name: odoo-addons
-          mountPath: /mnt/extra-addons
         resources:
           requests:
             memory: "1Gi"
@@ -58,6 +63,12 @@ spec:
           limits:
             memory: "2Gi"
             cpu: "1000m"
+        startupProbe:
+          httpGet:
+            path: /web/health
+            port: 8069
+          failureThreshold: 30
+          periodSeconds: 10
         livenessProbe:
           httpGet:
             path: /web/health
@@ -77,8 +88,6 @@ spec:
       - name: odoo-config
         configMap:
           name: odoo-config
-      - name: odoo-addons
-        emptyDir: {}  # You can mount your addons here or use a ConfigMap
 
 ---
 apiVersion: v1
@@ -92,6 +101,9 @@ spec:
   ports:
   - port: 8069
     targetPort: 8069
+    protocol: TCP
+  - port: 8072
+    targetPort: 8072
     protocol: TCP
   selector:
     app: odoo

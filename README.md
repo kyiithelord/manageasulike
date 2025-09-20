@@ -102,7 +102,7 @@ odooS/
 #### Step 1: Clone and Setup
 ```bash
 # Clone the repository
-git clone <this repo>
+git clone <your-repo-url>
 cd odooS
 
 # Verify Docker is running
@@ -123,7 +123,7 @@ docker compose logs odoo
 ```
 
 #### Step 3: Access Odoo
-- **URL**: `http://localhost:8069/odoo`
+- **URL**: `http://localhost:8069/`
 - **Default Credentials**: 
   - Username: `admin`
   - Password: `admin`
@@ -165,11 +165,29 @@ chmod +x scripts/*.sh
    - host: odoo.yourdomain.com  # Replace with your domain
    ```
 
-3. **Update odoo.yaml** with your image and version:
-   ```yaml
-   image: your-registry.com/odoo:18
-   ```
-   Replace `18` with the Odoo version you selected in `.env`.
+3. **Update odoo.yaml** with your image and version, and ensure Secrets are injected:**
+  ```yaml
+  image: your-registry.com/odoo:18
+  env:
+    - name: DB_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: odoo-secrets
+          key: postgres-password
+    - name: ADMIN_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: odoo-secrets
+          key: odoo-admin-password
+  args:
+    - "-c"
+    - "/etc/odoo/odoo.conf"
+    - "--db_password=$(DB_PASSWORD)"
+    - "--admin_passwd=$(ADMIN_PASSWORD)"
+  ```
+  Replace `18` with the Odoo version you selected in `.env`.
+
+4. (Optional) If you use longpolling, expose port `8072` on the Service and configure your Ingress accordingly.
 
 #### Step 3: Deploy to Kubernetes
 ```bash
@@ -217,6 +235,14 @@ workers = 2
 - **./addons**: Custom modules directory
 - **./config**: Configuration files
 
+**Healthchecks and dependencies:**
+- `db` has a healthcheck using `pg_isready`.
+- `odoo` waits for `db` to be healthy via `depends_on` with `condition: service_healthy`.
+- `odoo` exposes a health endpoint (`/web/health`) used for its own healthcheck.
+
+**Logging:**
+- Odoo is configured to log to stdout (no logfile inside container). Use `docker compose logs -f odoo`.
+
 ### Auto-scaling (Production)
 
 The Horizontal Pod Autoscaler (HPA) is configured to:
@@ -227,11 +253,19 @@ The Horizontal Pod Autoscaler (HPA) is configured to:
 
 ### Backup Strategy
 
-Automated backups run daily at 2 AM and include:
-- PostgreSQL database dump
-- Odoo file-store archive
-- S3 upload (configurable)
-- Local cleanup (7-day retention)
+Automated backups (via CronJob) include:
+- PostgreSQL database dump and gzip compression
+- Odoo file-store archive (if present)
+- Optional S3 upload (enable via env)
+- Local cleanup (default 7-day retention; configurable via `RETENTION_DAYS`)
+
+Environment variables supported by `backup/backup-script.sh`:
+- `BACKUP_DIR` (default `/backups`)
+- `DB_NAME`/`DB_HOST`/`DB_USER`/`DB_PORT` (defaults: `odoo`/`postgres-service`/`odoo`/`5432`)
+- `PGPASSWORD` (use a Secret to inject for pg_dump auth)
+- `ENABLE_S3_UPLOAD` (`true`/`false`, default `false`)
+- `S3_BUCKET`, `S3_DB_PREFIX`, `S3_FILESTORE_PREFIX`, `AWS_REGION`
+- `RETENTION_DAYS` (default `7`)
 
 ## 🛠️ Development Workflow
 
@@ -302,11 +336,13 @@ docker compose ps -a
 
 ### Production Monitoring
 
-The setup includes Prometheus monitoring for:
+The setup includes sample Prometheus monitoring for:
 - Pod health and availability
 - CPU and memory usage
 - Database connectivity
 - Backup job status
+
+**Prerequisites:** Ensure your cluster has a metrics server installed for HPA and a Prometheus/Grafana stack for monitoring.
 
 **Useful Commands:**
 ```bash
@@ -402,14 +438,13 @@ kubectl describe ingress odoo-ingress -n odoo
 ### Secrets Management
 
 **Local Development:**
-- Passwords stored in `docker-compose.yml` (not for production)
-- Use environment variables for sensitive data
+- Compose uses development defaults suitable for local use only.
+- Do not commit real credentials. Use a local `.env` for overrides.
 
 **Production:**
-- Sensitive data stored in Kubernetes secrets
-- Database passwords
-- Admin passwords
-- AWS credentials (for backups)
+- Sensitive data is stored in Kubernetes Secrets (see `k8s/secrets.yaml`).
+- Database and Odoo admin passwords are injected into the Odoo container via env and command-line args, not embedded in ConfigMaps.
+- AWS credentials (if used for backups) should be provided via Secrets or IRSA/Workload Identity.
 
 ### Network Security
 
@@ -478,7 +513,7 @@ For issues and questions:
 docker compose up -d
 
 # Access Odoo
-http://localhost:8069/odoo
+http://localhost:8069/
 
 # Stop development
 docker compose down
@@ -495,5 +530,5 @@ docker compose logs odoo
 - **Password**: admin
 
 ### Key URLs
-- **Odoo Interface**: http://localhost:8069/odoo
+- **Odoo Interface**: http://localhost:8069/
 - **Database**: localhost:5433 (PostgreSQL)

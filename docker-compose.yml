@@ -13,6 +13,12 @@ services:
     ports:
       - "${POSTGRES_HOST_PORT}:5432"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   odoo:
     build:
@@ -20,18 +26,21 @@ services:
       args:
         ODOO_VERSION: ${ODOO_VERSION}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     ports:
       - "${ODOO_HOST_PORT}:8069"
-    environment:
-      - HOST=db
-      - USER=odoo
-      - PASSWORD=${POSTGRES_PASSWORD}
     volumes:
       - odoo-web-data:/var/lib/odoo
       - ./addons:/mnt/extra-addons
       - ./config:/etc/odoo
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO", "-", "http://localhost:8069/web/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
 volumes:
   odoo-db-data:

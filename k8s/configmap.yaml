@@ -6,12 +6,10 @@ metadata:
 data:
   odoo.conf: |
     [options]
-    ; This is the password that allows database operations:
-    admin_passwd = admin
+    ; admin_passwd and db_password are passed via container args from Kubernetes Secret
     db_host = postgres-service
     db_port = 5432
     db_user = odoo
-    db_password = odoo
     db_name = False
     db_template = template0
     db_sslmode = prefer
@@ -19,7 +17,7 @@ data:
     data_dir = /var/lib/odoo
     log_level = info
     log_handler = :INFO
-    logfile = /var/log/odoo/odoo.log
+    ; Using stdout for logging
     max_cron_threads = 2
     workers = 2
     limit_memory_hard = 2684354560
@@ -28,6 +26,7 @@ data:
     limit_time_cpu = 600
     limit_time_real = 1200
     limit_time_real_cron = 1200
+    ; Enable proxy mode
     proxy_mode = True
     xmlrpc_port = 8069
     xmlrpc_interface = 0.0.0.0
