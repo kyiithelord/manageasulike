@@ -1,0 +1,93 @@
+name: CI
+
+on:
+  workflow_dispatch:
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+
+    env:
+      # Compose variables referenced by docker-compose.yml
+      ODOO_VERSION: "18"
+      POSTGRES_VERSION: "16"
+      # Use non-standard high ports to avoid conflicts on shared runners
+      POSTGRES_HOST_PORT: "55432"
+      ODOO_HOST_PORT: "58069"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install linters
+        run: |
+          python -m pip install --upgrade pip
+          pip install \
+            black==24.4.2 \
+            flake8==7.0.0 \
+            pylint==3.2.5 \
+            pylint-odoo==8.0.21
+
+      - name: Run Black (check)
+        run: |
+          black --check addons/multi_language || (echo "Run: black addons/multi_language" && exit 1)
+
+      - name: Run Flake8
+        run: |
+          flake8 addons/multi_language
+
+      - name: Run Pylint (with pylint-odoo)
+        run: |
+          # Pylint-odoo expects to run in the module directory; limiting scope to our module path
+          pylint --load-plugins=pylint_odoo --errors-only addons/multi_language || (echo "Fix Pylint issues or relax rules" && exit 1)
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Odoo image
+        run: |
+          docker compose build odoo
+
+      - name: Start Postgres only
+        run: |
+          docker compose up -d db
+
+      - name: Wait for Postgres healthy
+        run: |
+          for i in {1..30}; do \
+            STATUS=$(docker inspect --format='{{json .State.Health.Status}}' $(docker compose ps -q db) | tr -d '"'); \
+            echo "DB health: $STATUS"; \
+            if [ "$STATUS" = "healthy" ]; then \
+              break; \
+            fi; \
+            sleep 5; \
+          done
+          STATUS=$(docker inspect --format='{{json .State.Health.Status}}' $(docker compose ps -q db) | tr -d '"')
+          if [ "$STATUS" != "healthy" ]; then \
+            echo "Postgres did not become healthy in time"; \
+            docker compose logs db; \
+            exit 1; \
+          fi
+
+      - name: Run Odoo tests for multi_language
+        run: |
+          # Run one-off Odoo process wired to the healthy DB; stop after init to execute tests
+          docker compose run --rm \
+            -e ODOO_RC=/etc/odoo/odoo.conf \
+            odoo \
+            odoo -d test_db --stop-after-init --test-enable -i multi_language --workers=0
+
+      - name: Show Odoo logs on failure
+        if: failure()
+        run: |
+          docker compose logs --tail=200 db || true
+
+      - name: Tear down
+        if: always()
+        run: |
+          docker compose down -v
