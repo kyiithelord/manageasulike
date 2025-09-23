@@ -1,0 +1,15 @@
+# Overrides for development profile. Do not use in production.
+services:
+  odoo:
+    # Expose HTTP port directly for dev (bypass proxy)
+    ports:
+      - "8069:8069"
+    # Use a dev-focused config that disables workers for hot-reload friendliness
+    volumes:
+      - ./config/odoo.dev.conf:/etc/odoo/odoo.conf:ro
+    # Optionally enable Odoo dev features; uncomment if desired (varies by Odoo version)
+    # command: ["odoo", "--dev=all"]
+
+  # In dev, proxy is typically not needed; if running, it will still work
+  proxy:
+    profiles: ["prod"]
